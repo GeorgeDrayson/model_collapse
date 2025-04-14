@@ -1,0 +1,15 @@
+datasets >= 2.14.0
+evaluate
+accelerate >= 0.12.0
+torch >= 1.3
+sentencepiece != 0.1.92
+protobuf
+scikit-learn
+wandb
+tqdm
+hydra-core
+matplotlib
+nltk
+textstat
+mauve-text
+seaborn

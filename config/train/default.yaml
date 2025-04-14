@@ -1,0 +1,6 @@
+block_size: 512
+loss_on_last_n_tokens: 256
+batch_size: 8
+num_train_epochs: 1
+save_steps: 2000
+num_samples: None

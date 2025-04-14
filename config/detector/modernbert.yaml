@@ -1,0 +1,4 @@
+tokenizer_name: "GeorgeDrayson/modernbert-ai-detection"
+model_path: "GeorgeDrayson/modernbert-ai-detection"
+temperature: 1.359828233718872
+ai_confidence_threshold: 0.8674598932266235

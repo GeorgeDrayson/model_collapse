@@ -1,0 +1,36 @@
+defaults:
+  - model: gpt
+  - dataset: wikitext2
+  - train: default
+  - decoding: top_k
+  - detector: modernbert
+  - _self_
+
+# experiment configs
+smoke_test: false
+seed: 42
+num_iterations: 10
+wandb_disabled: false
+
+# mixture configs
+ai_beta: 1.0
+human_data_alpha: 1.0
+accumulate_ai_data: false
+human_data_filepath: ${dataset.path}/classified_human_data.json
+
+data_selection_strategy: None
+
+# device configs
+cuda_device: 2
+torch_dtype: bfloat16
+low_cpu_mem_usage: true
+
+# hydra save directory
+hydra:
+  run:
+    dir: ./outputs/${model.short_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+# plotting configs
+plotting:
+  enabled: true
+  metrics: ["eval_accuracy", "perplexity"]
