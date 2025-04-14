@@ -56,6 +56,8 @@ python main.py
 
 The training process can be customised using different configuration files (see Configuration section below).
 
+
+
 ## Configuration
 
 The project uses [Hydra](https://hydra.cc/) for configuration management. Key configuration files are located in the `config/` directory:
@@ -80,6 +82,16 @@ python main.py detector.model_path=detectors/custom_detector
 ```
 
 For more details on configuration options, see the [Hydra documentation](https://hydra.cc/docs/intro/).
+
+## Model
+
+The trained model is available on the Hugging Face Hub at [GeorgeDrayson/modernbert-ai-detection](https://huggingface.co/GeorgeDrayson/modernbert-ai-detection). It is a fine-tuned version of ModernBERT-base trained on the MAGE dataset for machine-generated text detection.
+
+### Model Details
+- Model Size: 150M parameters
+- Base Model: answerdotai/ModernBERT-base
+- Dataset: yaful/MAGE
+- Task: Text Classification
 
 ## Experiment Tracking
 The project uses Weights & Biases for experiment tracking. Results, metrics, and artifacts are automatically logged during training. To view your results set your API key: `export WANDB_API_KEY=your_key_here`
