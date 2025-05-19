@@ -1,8 +1,6 @@
 import numpy as np
-from datasets import load_dataset, Dataset, concatenate_datasets
-import wandb
 
-def weighted_sampling(dataset, seed, max_repeats, bias_factor, upsample_factor, **kwargs):
+def importance_sampling(dataset, seed, max_repeats, bias_factor, upsample_factor, **kwargs):
 
     # Set seed for reproducibility
     np.random.seed(seed)

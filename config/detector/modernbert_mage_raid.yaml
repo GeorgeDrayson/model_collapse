@@ -1,0 +1,4 @@
+tokenizer_name: "GeorgeDrayson/modernbert-ai-detection-raid-mage"
+model_path: "GeorgeDrayson/modernbert-ai-detection-raid-mage"
+temperature: 1.3017339706420898
+ai_confidence_threshold: 0.7493773102760315

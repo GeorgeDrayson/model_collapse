@@ -219,21 +219,9 @@ class DataTrainingArguments:
             "help": "Define number of tokens at the end of the sequence to compute the loss on."
         },
     )
-    group_texts_bool: bool = field(
-        default=True,
-        metadata={"help": "Group texts into block size chunks."},
-    )
-    group_human_texts_bool: bool = field(
-        default=True,
-        metadata={"help": "Group human texts into block size chunks."},
-    )
     data_selection_strategy: str = field(
         default=None,
         metadata={"help": "Data selection strategy"},
-    )
-    ai_confidence_threshold: float = field(
-        default=0.5,
-        metadata={"help": "AI confidence threshold"},
     )
     accumulate_ai_data: bool = field(
         default=False,
@@ -414,7 +402,7 @@ def main():
             "You can do it from another script, save it, and load it from here, using --tokenizer_name."
         )
     if tokenizer.pad_token_id is None:
-        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        tokenizer.pad_token = tokenizer.eos_token
 
     if model_args.model_name_or_path:
         torch_dtype = (
@@ -453,16 +441,14 @@ def main():
         train_column_names.remove("cls_score")
     if "cls_confidence" in train_column_names:
         train_column_names.remove("cls_confidence")
-    if "diversity" in train_column_names:
-        train_column_names.remove("diversity")
 
     lm_datasets_train = preprocess_and_tokenize_data(raw_datasets=raw_datasets["train"],
                                                 tokenizer=tokenizer,
                                                 column_names=train_column_names,
-                                                group_texts_bool=data_args.group_texts_bool, 
-                                                block_size=data_args.block_size,
+                                                max_length=data_args.block_size,
                                                 preprocessing_num_workers=data_args.preprocessing_num_workers,
                                                 overwrite_cache=data_args.overwrite_cache)
+    print(lm_datasets_train[1]['input_ids'])
     
     if data_args.ai_beta < 1.0:
         lm_datasets_train = lm_datasets_train.select(range(round(len(lm_datasets_train)*data_args.ai_beta)))
@@ -473,8 +459,7 @@ def main():
     lm_datasets_test = preprocess_and_tokenize_data(raw_datasets=raw_datasets["test"],
                                                 tokenizer=tokenizer,
                                                 column_names=test_column_names,
-                                                group_texts_bool=True, 
-                                                block_size=data_args.block_size,
+                                                max_length=data_args.block_size,
                                                 preprocessing_num_workers=data_args.preprocessing_num_workers,
                                                 overwrite_cache=data_args.overwrite_cache)
 
@@ -505,8 +490,7 @@ def main():
             iteration_dataset = preprocess_and_tokenize_data(raw_datasets=iteration_raw_dataset,
                                                                 tokenizer=tokenizer,
                                                                 column_names=train_column_names,
-                                                                group_texts_bool=False, 
-                                                                block_size=data_args.block_size,
+                                                                max_length=data_args.block_size,
                                                                 preprocessing_num_workers=data_args.preprocessing_num_workers,
                                                                 overwrite_cache=data_args.overwrite_cache)
 
@@ -543,20 +527,19 @@ def main():
             human_column_names.remove("cls_score")
         if "cls_confidence" in human_column_names:
             human_column_names.remove("cls_confidence")
-        if "cls_text" in human_column_names:
-            human_column_names.remove("cls_text")
 
-        human_lm_dataset = preprocess_and_tokenize_data(raw_datasets=human_dataset,
+
+        human_lm_dataset_train = preprocess_and_tokenize_data(raw_datasets=human_dataset["train"],
                                                     tokenizer=tokenizer,
                                                     column_names=human_column_names,
-                                                    group_texts_bool=data_args.group_human_texts_bool,
-                                                    block_size=data_args.block_size,
+                                                    max_length=data_args.block_size,
                                                     preprocessing_num_workers=data_args.preprocessing_num_workers,
                                                     overwrite_cache=data_args.overwrite_cache)
         
-        if "diversity" in list(raw_datasets["train"].features):
-            human_lm_dataset["train"] = human_lm_dataset["train"].map(calculate_diversity_for_sample)
-
+        human_lm_dataset = datasets.DatasetDict({
+            'train': human_lm_dataset_train,
+        })
+        
         human_data_size = len(human_lm_dataset["train"])
 
         print("Human data size before selection: ", human_data_size)
@@ -634,8 +617,8 @@ def main():
         shift_logits = shift_logits[..., -data_args.loss_on_last_n_tokens:, :].contiguous()  # Take the last n tokens
         shift_labels = shift_labels[..., -data_args.loss_on_last_n_tokens:].contiguous()    # Take the last n labels
 
-        # Compute the loss using CrossEntropyLoss
-        loss_fct = torch.nn.CrossEntropyLoss()  # Ensure padding tokens are ignored
+        # Compute the loss using CrossEntropyLoss with ignore_index set to pad_token_id
+        loss_fct = torch.nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)  # Properly ignore padding tokens
         loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
         return loss
@@ -719,7 +702,7 @@ def main():
         print(A_eff)
         print(H_eff)
 
-        wandb.log({"human_ai_ratio": H_eff/A_eff, "unique_human_samples": len(human_samples.unique("cls_text")), "unique_ai_samples": len(ai_samples.unique("cls_text"))})
+        # wandb.log({"human_ai_ratio": H_eff/A_eff, "unique_human_samples": len(human_samples.unique("cls_text")), "unique_ai_samples": len(ai_samples.unique("cls_text"))})
 
     kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-generation"}
     if data_args.dataset_name is not None:

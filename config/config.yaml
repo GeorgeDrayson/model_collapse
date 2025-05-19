@@ -1,9 +1,10 @@
 defaults:
-  - model: gpt
+  - model: gpt2
   - dataset: wikitext2
   - train: default
   - decoding: top_k
-  - detector: modernbert
+  - detector: modernbert_mage
+  - data_selection: importance_sampling
   - _self_
 
 # experiment configs
@@ -16,12 +17,9 @@ wandb_disabled: false
 ai_beta: 1.0
 human_data_alpha: 1.0
 accumulate_ai_data: false
-human_data_filepath: ${dataset.path}/classified_human_data.json
-
-data_selection_strategy: None
 
 # device configs
-cuda_device: 2
+cuda_device: 0
 torch_dtype: bfloat16
 low_cpu_mem_usage: true
 

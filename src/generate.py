@@ -4,7 +4,7 @@ import os
 import torch
 from datasets import load_dataset, Dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from utils.utils import truncate_dataset, save_to_json, preprocess_and_tokenize_data
+from utils.utils import preprocess_and_tokenize_data, get_context, get_text_to_classify, decode
 from utils.data_analysis import calculate_self_bleu_score, calculate_average_length, calculate_diversity_for_sample, calculate_flesch_readability
 from utils.detector import Detector
 import time
@@ -20,7 +20,6 @@ def parse_args():
     parser.add_argument("--device", type=str, default="cuda:0", help="Device to run the model on, e.g., 'cpu' or 'cuda:0'.")
     parser.add_argument("--experiment_path", type=str, required=True, help="Path to save generated texts in JSONL format.")
     parser.add_argument("--input_token_length", type=int, default=96, help="Length of input tokens.")
-    parser.add_argument("--batch_save_interval", type=int, required=False, help="Interval for saving generated texts.")
     parser.add_argument("--block_size", type=int, default=128, help="Block size for chunking the dataset.")
     parser.add_argument("--num_samples", type=int, help="Number of samples to generate.")
     parser.add_argument("--model_name", type=str, required=True, help="The model name")
@@ -35,6 +34,7 @@ def parse_args():
     parser.add_argument("--temperature", type=float, default=1.0, help="Sampling temperature for generating texts.")
     parser.add_argument("--top_p", type=float, default=1.0, help="Sampling temperature for generating texts.")
     parser.add_argument("--top_k", type=int, default=0, help="Top k sampling num for generating texts.")
+    parser.add_argument("--beam_search", type=int, default=0, help="Whether to carry out beam search decoding")
     parser.add_argument("--torch_dtype", type=str, default=None, help="Override the default `torch.dtype` and load the model under this dtype.")
     parser.add_argument("--low_cpu_mem_usage", type=str, default=False, help="Whether to use low cpu mem usage")
     parser.add_argument("--self_bleu_n_sample", type=int, default=1000, help="Number of samples to use for self bleu")
@@ -43,7 +43,6 @@ def parse_args():
     parser.add_argument("--detector_path", type=str, help="Path to model checkpoint")
     parser.add_argument("--detector_threshold", type=float, help="Detector threshold")
     parser.add_argument("--detector_temperature", type=float, default=1.395004153251648, help="Detector temperature")
-    parser.add_argument("--beam_search", type=int, default=0, help="Whether to carry out beam search decoding")
     return parser.parse_args()
 
 def load_dataset_for_generation(args):
@@ -125,13 +124,6 @@ def generate_texts(dataloader, tokenizer, model, args):
 
     return generated_texts, tokenized_generated_texts
 
-def get_context(example, input_token_length):
-    """Slice input_ids and attention_mask to the specified length."""
-    return {
-        "input_ids": example["input_ids"][:input_token_length],
-        "attention_mask": example["attention_mask"][:input_token_length],
-    }
-
 def main():
 
     # Initialize wandb
@@ -150,7 +142,10 @@ def main():
         os.makedirs(directory)
 
     # Load tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name, padding_side="left")
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    
     torch_dtype = (
         args.torch_dtype
         if args.torch_dtype in ["auto", None]
@@ -169,28 +164,22 @@ def main():
     dataset = preprocess_and_tokenize_data(raw_datasets=dataset,
                                             tokenizer=tokenizer,
                                             column_names=list(dataset.features),
-                                            group_texts_bool=True, 
-                                            block_size=args.block_size,
+                                            max_length=args.input_token_length,
                                             preprocessing_num_workers=args.preprocessing_num_workers,
-                                            overwrite_cache=True)
+                                            overwrite_cache=True,
+                                            text_column_name="context")
 
     # Sample number of samples
     if args.num_samples:
         dataset = dataset.select(range(args.num_samples))
-        
-    # context dataset
-    context_dataset = dataset.map(
-        lambda example: get_context(example, args.input_token_length), 
-        batched=False
-    )
 
     # Create TensorDataset
-    dataset = TensorDataset(torch.tensor(context_dataset["input_ids"]), torch.tensor(context_dataset["attention_mask"]))
+    dataset = TensorDataset(torch.tensor(dataset["input_ids"]), torch.tensor(dataset["attention_mask"]))
 
     # Create DataLoader
     dataloader = DataLoader(
         dataset,
-        batch_size=32,
+        batch_size=args.batch_size,
         pin_memory=True,  # Pin memory for faster GPU transfers
         drop_last=False,  # Don't drop the last batch
         shuffle=False  # Keep order consistent, or set to True if desired
@@ -204,38 +193,24 @@ def main():
         "input_ids": tokenized_generated_texts
     })
 
-    def get_text_to_classify(example, truncate_up_to):
-        example["input_ids"] = example["input_ids"][truncate_up_to:]
-        return example
-
-    def filter_eos(example, eos_token_id):
-        example["input_ids"] = [token for token in example["input_ids"] if token != eos_token_id]
-        return example
-    
-    def decode(example, text_key, input_ids_key):
-        example[text_key] = tokenizer.decode(example[input_ids_key], skip_special_tokens=True)
-        return example
-
     dataset_w_trunc = dataset.map(
         lambda example: get_text_to_classify(example, args.input_token_length), 
         batched=False,
         desc=f"Truncating texts to last {args.input_token_length} tokens",
     )
+    
+    def filter_eos(example, eos_token_id):
+        example["cls_input_ids"] = [token for token in example["cls_input_ids"] if token != eos_token_id]
+        return example
 
     processed_dataset = dataset_w_trunc.map(
         lambda example: filter_eos(example, tokenizer.eos_token_id), 
         batched=False,
         desc=f"Filtering special tokens",
     )
-
+    
     processed_dataset_with_cls_text = processed_dataset.map(
-        lambda example: decode(example, 'cls_text', 'input_ids'), 
-        batched=False,
-        desc=f"Decoding",
-    )
-
-    context_dataset_with_cls_text = context_dataset.map(
-        lambda example: decode(example, 'cls_text', 'input_ids'), 
+        lambda example: decode(example, tokenizer, 'cls_text', 'cls_input_ids'), 
         batched=False,
         desc=f"Decoding",
     )

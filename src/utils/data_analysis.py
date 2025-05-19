@@ -13,7 +13,13 @@ import textstat
 import numpy as np
 import mauve
 
-def calculate_mauve(human_dataset, ai_dataset, n_samples=1000):
+def calculate_mauve(ai_dataset, human_dataset=None, n_samples=1000):
+    """
+    Calculate MAUVE score between AI and human text.
+    If human_dataset is not provided, returns None for mauve score.
+    """
+    if human_dataset is None:
+        return {"mauve": None}
 
     p_text = ai_dataset['cls_text'] # ai text
     q_text = human_dataset['cls_text'] #human text

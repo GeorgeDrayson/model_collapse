@@ -1,0 +1,4 @@
+strategy: None
+upsample_factor: 1.0
+bias_factor: 1.0
+max_repeats: 1

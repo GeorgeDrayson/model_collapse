@@ -16,8 +16,8 @@ def main(cfg: DictConfig):
     wandb_project = f"model_collapse_{cfg.model.short_name}"
     if cfg.accumulate_ai_data:
         prepend = "accumulate_"
-        print(cfg.data_selection_strategy)
-        if cfg.data_selection_strategy != 'None':
+        print(cfg.data_selection.strategy)
+        if cfg.data_selection.strategy != 'None':
             prepend += "select_"
         wandb_project = prepend + wandb_project
     os.environ["WANDB_PROJECT"] = wandb_project
@@ -62,6 +62,7 @@ def main(cfg: DictConfig):
         "--test_file", f"{cfg.dataset.path}/test.json",
         "--do_train",
         "--do_eval",
+        "--ai_beta", str(cfg.ai_beta),
         "--block_size", str(block_size),
         "--loss_on_last_n_tokens", str(loss_on_last_n_tokens),
         "--num_train_epochs", str(num_train_epochs),
@@ -83,7 +84,6 @@ def main(cfg: DictConfig):
             "python", "src/generate.py",
             "--model_name", model_name,
             "--model_path", os.path.join(prev_model_output_dir, "final_model"),
-            "--batch_size", str(batch_size),
             "--input_token_length", str(block_size - loss_on_last_n_tokens),
             "--block_size", str(block_size),
             "--iteration", str(iteration),
@@ -118,9 +118,9 @@ def main(cfg: DictConfig):
             "--train_file", train_file,
             "--test_file", f"{cfg.dataset.path}/test.json",
             "--experiment_path", experiment_path,
-            "--human_data_filepath", str(cfg.human_data_filepath),
+            "--human_data_filepath", f"{cfg.dataset.path}/train.json",
             "--human_data_alpha", str(cfg.human_data_alpha),
-            "--group_human_texts_bool", "false",
+            "--ai_beta", str(cfg.ai_beta),
             "--do_train",
             "--do_eval",
             "--block_size", str(block_size),
@@ -128,15 +128,16 @@ def main(cfg: DictConfig):
             "--num_train_epochs", str(num_train_epochs),
             "--save_steps", str(cfg.train.save_steps),
             "--seed", str(seed),
-            "--group_texts_bool", "False",
             "--torch_dtype", torch_dtype,
             "--low_cpu_mem_usage", low_cpu_mem_usage,
             "--run_name", f"train_iteration_{iteration}",
             "--iteration", str(iteration),
-            "--data_selection_strategy", str(cfg.data_selection_strategy),
-            "--ai_confidence_threshold", str(cfg.detector.ai_confidence_threshold),
+            "--data_selection_strategy", str(cfg.data_selection.strategy),
             "--accumulate_ai_data", str(cfg.accumulate_ai_data),
-            "--preprocessing_num_workers", "2"
+            "--preprocessing_num_workers", "2",
+            "--upsample_factor", str(cfg.data_selection.upsample_factor),
+            "--bias_factor", str(cfg.data_selection.bias_factor),
+            "--max_repeats", str(cfg.data_selection.max_repeats)
         ])
 
     if cfg.plotting.enabled:
