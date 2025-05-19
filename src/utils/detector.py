@@ -1,8 +1,9 @@
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from torch.nn.functional import softmax
 import torch
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from datasets import Dataset
+import torch._dynamo
+torch._dynamo.config.suppress_errors = True
+
 
 class Detector:
     def __init__(self, tokenizer_name, detector_path, device):

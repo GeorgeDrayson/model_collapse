@@ -1,0 +1,4 @@
+strategy: importance_sampling
+upsample_factor: 1.5
+bias_factor: 10
+max_repeats: 3
