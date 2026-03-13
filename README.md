@@ -1,9 +1,11 @@
 # Machine-Generated Text Detection Prevents Language Model Collapse
 
-[![arXiv](https://img.shields.io/badge/arXiv-2502.15654-b31b1b.svg)](https://arxiv.org/abs/2502.15654)
+[![EMNLP 2025](https://img.shields.io/badge/EMNLP-2025-blue.svg)](https://aclanthology.org/2025.emnlp-main.1506/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-This repository contains the official implementation of the paper ["Machine-generated text detection prevents language model collapse"](https://arxiv.org/abs/2502.15654) by George Drayson, Emine Yilmaz, and Vasileios Lampos.
+> 🎉 **Accepted at EMNLP 2025 (Main)!** 🎉 — [ACL Anthology](https://aclanthology.org/2025.emnlp-main.1506/)
+
+This repository contains the official implementation of the paper ["Machine-generated text detection prevents language model collapse"](https://aclanthology.org/2025.emnlp-main.1506/) by George Drayson, Emine Yilmaz, and Vasileios Lampos.
 
 ## Overview
 
@@ -109,10 +111,11 @@ For questions about the code or paper, please open an issue in this repository.
 If you use this code in your research, please cite our paper:
 
 ```bibtex
-@article{drayson2025machine,
+@inproceedings{drayson2025machine,
   title={Machine-generated text detection prevents language model collapse},
   author={Drayson, George and Yilmaz, Emine and Lampos, Vasileios},
-  journal={arXiv preprint arXiv:2502.15654},
-  year={2025}
+  booktitle={Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing},
+  year={2025},
+  url={https://aclanthology.org/2025.emnlp-main.1506}
 }
 ```
